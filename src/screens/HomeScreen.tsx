@@ -4,7 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, ImageBackground, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Image, ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
 import { AppHeader } from '../components/AppHeader';
 import { CTAButton } from '../components/CTAButton';
 import { EventCard } from '../components/EventCard';
@@ -13,6 +13,7 @@ import { Screen } from '../components/Screen';
 import { event } from '../data/events';
 import { MainTabParamList, RootStackParamList } from '../navigation/types';
 import { theme } from '../theme/theme';
+import { downloadBrochure } from '../utils/downloadBrochure';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Props = CompositeScreenProps<
@@ -23,48 +24,33 @@ type Props = CompositeScreenProps<
 const conferenceDays = [
   {
     day: 'DAY 1',
-    date: '03rd July 2026',
+    date: '3rd July 2026',
     colors: ['#6576D9', '#263EAA'],
     sessions: [
       {
         time: '10:00 - 11:30',
         label: 'Inaugural Session',
-        title: ''
-      },
-      {
-        time: '11:30 - 12:00',
-        label: 'Refreshments Break',
-        title: ''
+        title: 'Opening remarks and conference inauguration'
       },
       {
         time: '12:00 - 13:00',
-        label: 'Plenary Session 1:',
+        label: 'Opening Plenary Session',
         title: 'Strategies for integrating ESG framework with SHE for sustainable workplace'
       },
       {
-        time: '13:00 - 14:00',
-        label: 'Networking Lunch',
-        title: ''
-      },
-      {
         time: '14:00 - 15:15',
-        label: 'Plenary Session 2:',
-        title: 'Environmental Protection and Management-Source to Sink approach'
-      },
-      {
-        time: '15:15 - 15:45',
-        label: 'Refreshments Break',
-        title: ''
+        label: 'Plenary Session 2',
+        title: 'Environmental protection and management from source to sink approach'
       },
       {
         time: '15:45 - 17:00',
-        label: 'Plenary Session 3:',
-        title: 'Beyond Compliance: Building a Resilient Safety Culture Powered by Values'
+        label: 'Plenary Session 3: Safety',
+        title: 'Beyond Compliance: Building a Resilient Safety Culture Powered by Values.'
       },
       {
         time: '17:00 - 18:15',
-        label: 'Plenary Session 4:',
-        title: 'Occupational Health & Safety: A strategic approach to workplace wellness'
+        label: 'Plenary Session 4: Health',
+        title: 'Occupational health and safety: a strategic approach to workplace wellness'
       },
       {
         time: '18:15 - 19:00',
@@ -75,48 +61,33 @@ const conferenceDays = [
   },
   {
     day: 'DAY 2',
-    date: '04th July 2026',
+    date: '4th July 2026',
     colors: ['#1F5A84', '#1978B7'],
     sessions: [
       {
         time: '09:00 - 10:00',
-        label: 'Mental Health: Practice of Meditation and Self Realisation',
-        title: ''
+        label: 'Mental Health :Practice of Meditation & Self Realisation.',
+        title: 'Focused morning session for reflection and readiness'
       },
       {
         time: '10:00 - 11:00',
-        label: 'Technical Session 1:',
-        title: 'Navigating the New Risk Frontier: Mastering Safety Portfolios in a Technology Transition regime in Power Sector'
+        label: 'Plenary Session 5: Safety',
+        title: "Navigating the new risk frontier : Mastering Safety portfolio's in a technology transition regime in Power Sector"
       },
       {
         time: '11:00 - 12:00',
-        label: 'Technical Session 2:',
-        title: 'Credible ESG Systems: Data, Assurance, and Digital Compliance Platforms'
-      },
-      {
-        time: '12:00 - 12:20',
-        label: 'Refreshments Break',
-        title: ''
+        label: 'Technical Session 1: Environment',
+        title: 'Credible ESG systems : Data, Assurance, and Digital compliance platforms'
       },
       {
         time: '12:20 - 13:30',
-        label: 'Plenary Session 5:',
-        title: 'Emergency Preparedness: Amalgamation of Experience, Framework & Technology'
-      },
-      {
-        time: '13:30 - 14:30',
-        label: 'Networking Lunch',
-        title: ''
+        label: 'Technical Session 2: Safety',
+        title: 'Emergency preparedness: Amalgamation of Experience, Framework and Technology'
       },
       {
         time: '14:30 - 15:30',
-        label: 'Technical Session 3:',
+        label: 'Technical Session 3 : Safety & Health',
         title: 'Transforming workplace Occupational health & Safety through AI & Digital Innovation'
-      },
-      {
-        time: '15:30 - 15:50',
-        label: 'Refreshments Break',
-        title: ''
       },
       {
         time: '15:50 - 17:15',
@@ -127,20 +98,85 @@ const conferenceDays = [
   }
 ] as const;
 
-const specialAttractions = [
+type Sector = {
+  title: string;
+  image: ImageSourcePropType;
+  accent: string;
+};
+
+const sectoralParticipation: Sector[] = [
   {
-    icon: 'podium',
-    title: 'High-Level Conference',
-    body: 'Focused on cutting-edge ESG frameworks, AI-driven workplace safety, and global green compliance.'
+    title: 'POWER',
+    image: require('../assets/sectoral/Power.png'),
+    accent: '#1684D8'
   },
   {
-    icon: 'people-outline',
-    title: 'Networking & B2B Engagement',
-    body: 'Structured opportunities to collaborate with decision-makers from top-tier energy, manufacturing, and technology sectors.'
+    title: 'CONSTRUCTION',
+    image: require('../assets/sectoral/Construction.png'),
+    accent: '#F37021'
+  },
+  {
+    title: 'OIL & GAS',
+    image: require('../assets/sectoral/Oil -Gas.png'),
+    accent: '#F2B705'
+  },
+  {
+    title: 'CHEMICALS & PETROCHEMICALS',
+    image: require('../assets/sectoral/chemicals-Petrochemicals.png'),
+    accent: '#6D5BD0'
+  },
+  {
+    title: 'IRON / STEEL / ALUMINIUM',
+    image: require('../assets/sectoral/IRON-Steel-Aluminumi.png'),
+    accent: '#9AA0A6'
+  },
+  {
+    title: 'HEALTHCARE & PHARMA',
+    image: require('../assets/sectoral/Healthcare-Pharma.png'),
+    accent: '#7AC943'
+  },
+  {
+    title: 'MANUFACTURING',
+    image: require('../assets/sectoral/Manufacturing.png'),
+    accent: '#15BDEB'
+  },
+  {
+    title: 'LOGISTICS & TRANSPORTATION',
+    image: require('../assets/sectoral/Logistcs-Transportation.png'),
+    accent: '#F7941D'
+  },
+  {
+    title: 'HSE & OTHERS',
+    image: require('../assets/sectoral/HSE-Others.png'),
+    accent: '#009444'
+  },
+  {
+    title: 'MINING',
+    image: require('../assets/sectoral/MINING.png'),
+    accent: '#3EA7E0'
+  },
+  {
+    title: 'ENVIRONMENT & SUSTAINABILITY',
+    image: require('../assets/sectoral/Environment-Sustainability.png'),
+    accent: '#39B54A'
+  },
+  {
+    title: 'REGULATORS',
+    image: require('../assets/sectoral/Regulators.png'),
+    accent: '#354B7C'
+  },
+  {
+    title: 'CONSULTANTS',
+    image: require('../assets/sectoral/consultant.png'),
+    accent: '#F37021'
+  },
+  {
+    title: 'ACADEMIA',
+    image: require('../assets/sectoral/academy.png'),
+    accent: '#31BBD3'
   }
-] as const;
+];
 
-const specialAttractionsImage = require('../assets/slide-2.jpeg');
 const eventStartTime = new Date('2026-07-03T10:00:00+05:30').getTime();
 
 export function HomeScreen({ navigation }: Props) {
@@ -160,6 +196,14 @@ export function HomeScreen({ navigation }: Props) {
       console.log(error);
     }
   };
+
+  const handleDownloadBrochure = async () => {
+    try {
+      await downloadBrochure();
+    } catch {
+      Alert.alert('Download failed', 'Unable to open the brochure. Please try again.');
+    }
+  };
   
   return (
     <Screen refreshable header={<AppHeader onProfilePress={() => navigation.navigate('More')} />}>
@@ -174,7 +218,13 @@ export function HomeScreen({ navigation }: Props) {
             style={styles.premiumCountdown}
           >
             <View style={styles.countGlow} />
-            <Text style={styles.countHeading}>Event starts in</Text>
+            <View style={styles.countGlowSmall} />
+            <View style={styles.countTopRow}>
+              <View>
+                <Text style={styles.countEyebrow}>NOSHE 2026</Text>
+                <Text style={styles.countHeading}>Event starts in</Text>
+              </View>
+            </View>
             <View style={styles.countdownGrid}>
               {[
                 { label: 'Days', value: countdown.days },
@@ -188,7 +238,20 @@ export function HomeScreen({ navigation }: Props) {
                 </View>
               ))}
             </View>
-            <CTAButton title="Register Now" style={styles.countRegister} onPress={() => navigation.navigate('Tickets')} />
+            <CTAButton
+              title="Register Now"
+              style={styles.countRegister}
+              textStyle={styles.homeButtonText}
+              onPress={() => navigation.navigate('Tickets')}
+            />
+            <CTAButton
+              title="Download Brochure"
+              variant="ghost"
+              icon={<Ionicons name="download-outline" size={18} color={theme.colors.navy} />}
+              style={styles.countBrochure}
+              textStyle={styles.homeButtonText}
+              onPress={handleDownloadBrochure}
+            />
           </LinearGradient>
         </View>
       ) : null}
@@ -225,9 +288,9 @@ export function HomeScreen({ navigation }: Props) {
           onPress={() => navigation.navigate('Agenda')}
         />
         <QuickActionCard
-          title="Speakers"
-          icon={<Ionicons name="people-outline" size={23} color={theme.colors.orange} />}
-          onPress={() => navigation.navigate('Speakers')}
+          title="Contact"
+          icon={<Ionicons name="call-outline" size={23} color={theme.colors.orange} />}
+          onPress={() => navigation.navigate('Contact')}
         />
         <QuickActionCard
           title="Venue"
@@ -235,7 +298,7 @@ export function HomeScreen({ navigation }: Props) {
           onPress={() => navigation.navigate('Venue')}
         />
         <QuickActionCard
-          title="Members"
+          title="Committee"
           icon={<Ionicons name="people-circle-outline" size={23} color={theme.colors.orange} />}
           onPress={() => navigation.navigate('Members')}
         />
@@ -284,63 +347,34 @@ export function HomeScreen({ navigation }: Props) {
           ))}
         </View>
       </View>
-      <LinearGradient
-        colors={['#10233F', '#0A1A31']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.specialSection}
-      >
-        <ImageBackground
-          source={specialAttractionsImage}
-          resizeMode="cover"
-          imageStyle={styles.specialImage}
-          style={styles.specialVisual}
-        >
-          <LinearGradient
-            colors={['rgba(7, 16, 31, 0.08)', 'rgba(7, 16, 31, 0.72)']}
-            style={styles.specialImageOverlay}
-          />
-          <View style={styles.visualTagRow}>
-            {['Insight-led safety', 'ESG integration', 'Industry collaboration'].map((item) => (
-              <View key={item} style={styles.visualTag}>
-                <Text style={styles.visualTagText}>{item}</Text>
-              </View>
-            ))}
-          </View>
-        </ImageBackground>
-        <View style={styles.specialCopy}>
-          <Text style={styles.specialEyebrow}>Special Attractions</Text>
-          <Text style={styles.specialTitle}>
-            Insight-led safety, ESG, and industry collaboration.
-          </Text>
-          <Text style={styles.specialText}>
-            A focused conference experience shaped around practical knowledge, live technology
-            discovery, and meaningful business conversations.
-          </Text>
-        </View>
-        <View style={styles.specialCards}>
-          {specialAttractions.map((item) => (
-            <View key={item.title} style={styles.specialCard}>
-              <LinearGradient
-                colors={['#F47A3D', '#5B6FE8']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.specialIcon}
-              >
-                <Ionicons
-                  name={item.icon as keyof typeof Ionicons.glyphMap}
-                  size={22}
-                  color={theme.colors.white}
+
+      <View style={styles.sectorSection}>
+        <Text style={styles.sectorHeading}>Sectoral Participation</Text>
+        <View style={styles.sectorStack}>
+          {sectoralParticipation.map((sector) => (
+            <LinearGradient
+              key={sector.title}
+              colors={['#003F8F', '#005CAF', '#1598E8']}
+              locations={[0, 0.55, 1]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.sectorCard}
+            >
+              <View style={styles.sectorShade} />
+              <View style={styles.sectorIconWrap}>
+                <Image
+                  source={sector.image}
+                  style={[styles.sectorIcon, { tintColor: sector.accent }]}
+                  resizeMode="contain"
                 />
-              </LinearGradient>
-              <View style={styles.specialCardCopy}>
-                <Text style={styles.specialCardTitle}>{item.title}</Text>
-                <Text style={styles.specialCardText}>{item.body}</Text>
               </View>
-            </View>
+              <Text style={styles.sectorTitle} numberOfLines={1} adjustsFontSizeToFit>
+                {sector.title}
+              </Text>
+            </LinearGradient>
           ))}
         </View>
-      </LinearGradient>
+      </View>
     </Screen>
   );
 }
@@ -398,39 +432,62 @@ const styles = StyleSheet.create({
     marginTop: 4
   },
   countdownShell: {
-    backgroundColor: theme.colors.white,
-    borderRadius: 28,
-    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 30,
+    padding: 7,
     borderWidth: 1,
-    borderColor: '#E2EDF8',
+    borderColor: '#DCEAF8',
     shadowColor: '#0B356C',
-    shadowOpacity: 0.08,
-    shadowOffset: { width: 0, height: 12 },
-    shadowRadius: 22,
-    elevation: 4
+    shadowOpacity: 0.14,
+    shadowOffset: { width: 0, height: 16 },
+    shadowRadius: 26,
+    elevation: 7
   },
   premiumCountdown: {
-    borderRadius: 24,
-    padding: 16,
-    gap: 13,
+    borderRadius: 25,
+    padding: 17,
+    gap: 15,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)'
+    borderColor: 'rgba(255,255,255,0.26)'
   },
   countGlow: {
     position: 'absolute',
-    right: -18,
-    top: -54,
-    width: 142,
-    height: 142,
-    borderRadius: 71,
-    backgroundColor: 'rgba(255,255,255,0.2)'
+    right: -34,
+    top: -72,
+    width: 176,
+    height: 176,
+    borderRadius: 88,
+    backgroundColor: 'rgba(255,255,255,0.22)'
+  },
+  countGlowSmall: {
+    position: 'absolute',
+    left: -52,
+    bottom: -78,
+    width: 154,
+    height: 154,
+    borderRadius: 77,
+    backgroundColor: 'rgba(243,112,33,0.16)'
+  },
+  countTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12
+  },
+  countEyebrow: {
+    color: '#BFE4FF',
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: '600',
+    letterSpacing: 1.3,
+    textTransform: 'uppercase'
   },
   countHeading: {
     color: theme.colors.white,
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: '600'
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: '700',
+    marginTop: 2
   },
   countdownGrid: {
     flexDirection: 'row',
@@ -438,36 +495,53 @@ const styles = StyleSheet.create({
   },
   countdownCard: {
     flex: 1,
-    minHeight: 82,
-    borderRadius: 8,
-    backgroundColor: '#F8FBFF',
+    minHeight: 80,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.94)',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 9,
+    paddingVertical: 10,
+    paddingHorizontal: 3,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.72)',
+    borderColor: 'rgba(255,255,255,0.82)',
     shadowColor: '#071326',
-    shadowOpacity: 0.09,
-    shadowOffset: { width: 0, height: 6 },
-    shadowRadius: 12,
-    elevation: 3
+    shadowOpacity: 0.12,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 14,
+    elevation: 4
   },
   countdownValue: {
-    color: '#C8A58E',
-    fontSize: 29,
-    lineHeight: 35,
-    fontWeight: '800'
-  },
-  countdownLabel: {
-    color: theme.colors.text,
-    fontSize: 10,
-    lineHeight: 14,
+    color: theme.colors.orange,
+    fontSize: 28,
+    lineHeight: 34,
     fontWeight: '700'
   },
+  countdownLabel: {
+    color: theme.colors.navy,
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: '700',
+    marginTop: 2
+  },
   countRegister: {
-    minHeight: 46,
-    borderRadius: 16,
-    marginTop: 1
+    minHeight: 48,
+    borderRadius: 18,
+    marginTop: 2,
+    shadowColor: theme.colors.orange,
+    shadowOpacity: 0.32,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 16,
+    elevation: 5
+  },
+  countBrochure: {
+    minHeight: 48,
+    borderRadius: 18,
+    marginTop: -7,
+    backgroundColor: 'rgba(255,255,255,0.94)',
+    borderColor: 'rgba(255,255,255,0.82)'
+  },
+  homeButtonText: {
+    fontWeight: '600'
   },
   topicSection: {
     backgroundColor: '#F8FAFF',
@@ -628,115 +702,6 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     marginTop: 8
   },
-  specialSection: {
-    borderRadius: 24,
-    padding: 16,
-    gap: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    shadowColor: '#071326',
-    shadowOpacity: 0.16,
-    shadowOffset: { width: 0, height: 14 },
-    shadowRadius: 24,
-    elevation: 6
-  },
-  specialVisual: {
-    minHeight: 210,
-    borderRadius: 18,
-    overflow: 'hidden',
-    justifyContent: 'space-between',
-    padding: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)'
-  },
-  specialImage: {
-    borderRadius: 18
-  },
-  specialImageOverlay: {
-    ...StyleSheet.absoluteFillObject
-  },
-  visualTagRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 'auto'
-  },
-  visualTag: {
-    borderRadius: theme.radius.pill,
-    backgroundColor: 'rgba(9, 20, 38, 0.64)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.18)',
-    paddingHorizontal: 10,
-    paddingVertical: 6
-  },
-  visualTagText: {
-    color: theme.colors.white,
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: '500'
-  },
-  specialCopy: {
-    gap: 10
-  },
-  specialEyebrow: {
-    color: '#FFC229',
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: '600',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase'
-  },
-  specialTitle: {
-    color: theme.colors.white,
-    fontSize: 30,
-    lineHeight: 36,
-    fontWeight: '600',
-    letterSpacing: 0
-  },
-  specialText: {
-    color: '#DDE8F8',
-    fontSize: 14,
-    lineHeight: 23,
-    fontWeight: '400'
-  },
-  specialCards: {
-    gap: 12
-  },
-  specialCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 14,
-    borderRadius: 18,
-    padding: 16,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)'
-  },
-  specialIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  specialCardCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 6
-  },
-  specialCardTitle: {
-    color: theme.colors.white,
-    fontSize: 17,
-    lineHeight: 22,
-    fontWeight: '600'
-  },
-  specialCardText: {
-    color: '#DDE8F8',
-    fontSize: 13,
-    lineHeight: 20,
-    fontWeight: '400'
-  },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -788,5 +753,62 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     gap: 11
+  },
+  sectorSection: {
+    gap: 14
+  },
+  sectorHeading: {
+    color: theme.colors.orange,
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: '700'
+  },
+  sectorStack: {
+    gap: 14
+  },
+  sectorCard: {
+    minHeight: 184,
+    borderRadius: 24,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    paddingTop: 24,
+    paddingBottom: 22,
+    shadowColor: '#0B356C',
+    shadowOpacity: 0.18,
+    shadowOffset: { width: 0, height: 12 },
+    shadowRadius: 18,
+    elevation: 6
+  },
+  sectorShade: {
+    position: 'absolute',
+    right: -24,
+    top: -42,
+    width: 170,
+    height: 170,
+    borderRadius: 85,
+    backgroundColor: 'rgba(255,255,255,0.22)'
+  },
+  sectorIconWrap: {
+    width: 176,
+    height: 148,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: -4
+  },
+  sectorIcon: {
+    width: 168,
+    height: 148,
+    opacity: 0.95
+  },
+  sectorTitle: {
+    color: theme.colors.white,
+    fontSize: 17,
+    lineHeight: 23,
+    fontWeight: '600',
+    textAlign: 'center',
+    letterSpacing: 0,
+    width: '100%'
   }
 });

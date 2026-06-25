@@ -4,6 +4,7 @@
     "slug": "noshe-2026",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./src/assets/app-icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./src/assets/logo-1.png",
@@ -14,14 +15,31 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSExceptionDomains": {
+            "innovision360.com": {
+              "NSIncludesSubdomains": true,
+              "NSTemporaryExceptionAllowsInsecureHTTPLoads": true,
+              "NSTemporaryExceptionMinimumTLSVersion": "TLSv1.2"
+            }
+          }
+        }
+      }
     },
     "android": {
       "package": "com.noshe2026.app",
-      "versionCode": 1,
+      "versionCode": 4,
+      "icon": "./src/assets/app-icon.png",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
-        "foregroundImage": "./src/assets/logo-1.png",
-        "backgroundColor": "#004EA8"
+        "foregroundImage": "./src/assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
       }
     },
     "web": {
@@ -29,6 +47,7 @@
     },
     "plugins": [
       "expo-font",
+      "./plugins/withAndroidCleartext",
       [
         "expo-camera",
         {
@@ -38,8 +57,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "33aa4120-a431-43e4-8b2b-cc0e0ccd8b3d"
+        "projectId": "c34ff0e2-773f-41f2-af19-83558e9f8ee9"
       }
-    }
+    },
+    "owner": "expoevent"
   }
 }

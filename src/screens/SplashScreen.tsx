@@ -1,14 +1,13 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { RootStackParamList } from '../navigation/types';
-import { theme } from '../theme/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Splash'>;
 
-const splashLogo = require('../assets/logo-1.png');
+const nosheLogo = require('../assets/ntpc-logo-1.png');
+const ntpcLogo = require('../assets/NTPC-logo.png');
 
 export function SplashScreen({ navigation }: Props) {
   useEffect(() => {
@@ -17,56 +16,76 @@ export function SplashScreen({ navigation }: Props) {
   }, [navigation]);
 
   return (
-    <LinearGradient colors={[theme.colors.navy, theme.colors.navySoft]} style={styles.container}>
-      <StatusBar style="light" backgroundColor={theme.colors.navy} translucent={false} />
+    <View style={styles.container}>
+      <StatusBar style="light" backgroundColor="#0D74C8" translucent={false} />
       <View style={styles.logoCard}>
         <Image
-          source={splashLogo}
-          style={styles.logo}
+          source={nosheLogo}
+          style={styles.nosheLogo}
           resizeMode="contain"
           accessible
           accessibilityLabel="NOSHE 2026 logo"
         />
+        <View style={styles.logoDivider} />
+        <Image
+          source={ntpcLogo}
+          style={styles.ntpcLogo}
+          resizeMode="contain"
+          accessible
+          accessibilityLabel="NTPC logo"
+        />
       </View>
       <Text style={styles.title}>NOSHE 2026</Text>
       <Text style={styles.subtitle}>Occupational Health & Safety Forum</Text>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#0D74C8',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 16
+    paddingBottom: 18
   },
   logoCard: {
-    width: 160,
-    height: 160,
-    borderRadius: 34,
-    backgroundColor: theme.colors.white,
+    width: 316,
+    minHeight: 104,
+    borderRadius: 28,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 18,
-    shadowColor: '#001D3D',
-    shadowOpacity: 0.18,
-    shadowOffset: { width: 0, height: 12 },
-    shadowRadius: 24,
-    elevation: 8
+    flexDirection: 'row',
+    paddingHorizontal: 10,
+    paddingVertical: 10
   },
-  logo: {
-    width: '100%',
-    height: '100%'
+  nosheLogo: {
+    width: 136,
+    height: 84
+  },
+  logoDivider: {
+    width: 1,
+    height: 76,
+    backgroundColor: '#DDECF8',
+    marginHorizontal: 8
+  },
+  ntpcLogo: {
+    width: 136,
+    height: 84
   },
   title: {
-    color: theme.colors.white,
-    fontSize: 34,
-    fontWeight: '900'
+    color: '#FFFFFF',
+    fontSize: 31,
+    lineHeight: 38,
+    fontWeight: '900',
+    marginTop: 22
   },
   subtitle: {
-    color: '#DDE7F5',
-    fontSize: 15,
-    fontWeight: '700'
+    color: '#FFFFFF',
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '700',
+    marginTop: 10
   }
 });

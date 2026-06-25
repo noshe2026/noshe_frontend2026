@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AgendaScreen } from '../screens/AgendaScreen';
 import { HomeScreen } from '../screens/HomeScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
-import { SpeakersScreen } from '../screens/SpeakersScreen';
+// import { SpeakersScreen } from '../screens/SpeakersScreen';
 import { SponsorsScreen } from '../screens/SponsorsScreen';
 import { theme } from '../theme/theme';
 import { MainTabParamList } from './types';
@@ -23,6 +23,14 @@ const tabIcons: Record<
   Speakers: { active: 'people', inactive: 'people-outline' },
   Members: { active: 'people-circle', inactive: 'people-circle-outline' },
   More: { active: 'grid', inactive: 'grid-outline' }
+};
+
+const tabLabels: Record<keyof MainTabParamList, string> = {
+  Home: 'Home',
+  Agenda: 'Agenda',
+  Speakers: 'Speakers',
+  Members: 'Committee',
+  More: 'More'
 };
 
 function AnimatedTabIcon({
@@ -138,7 +146,7 @@ export function MainTabs() {
         ],
         tabBarItemStyle: styles.tabItem,
         tabBarLabel: ({ color, focused }) => (
-          <AnimatedTabLabel color={color} focused={focused} label={route.name} />
+          <AnimatedTabLabel color={color} focused={focused} label={tabLabels[route.name]} />
         ),
         tabBarIcon: ({ color, focused }) => (
           <AnimatedTabIcon color={color} focused={focused} name={route.name} />
@@ -147,7 +155,7 @@ export function MainTabs() {
     >
       <Tabs.Screen name="Home" component={HomeScreen} />
       <Tabs.Screen name="Agenda" component={AgendaScreen} />
-      <Tabs.Screen name="Speakers" component={SpeakersScreen} />
+      {/* <Tabs.Screen name="Speakers" component={SpeakersScreen} /> */}
       <Tabs.Screen name="Members" component={SponsorsScreen} />
       <Tabs.Screen name="More" component={ProfileScreen} />
     </Tabs.Navigator>

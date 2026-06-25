@@ -3,11 +3,10 @@ import { CompositeScreenProps } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useMemo, useState, useEffect } from 'react';
-import * as Print from 'expo-print';
-import RNHTMLtoPDF from 'react-native-html-to-pdf';
-import * as Sharing from 'expo-sharing';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import {
+  Alert,
+  Animated,
   Image,
   LayoutAnimation,
   Modal,
@@ -20,15 +19,14 @@ import {
 } from 'react-native';
 import { AppHeader } from '../components/AppHeader';
 import { Screen } from '../components/Screen';
-import { sessions } from '../data/sessions';
-import { speakers } from '../data/speakers';
 import { MainTabParamList, RootStackParamList } from '../navigation/types';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../theme/theme';
-import { Session, Track } from '../types';
+import { Track } from '../types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAgendaData,getFilterData, toggleFavorite,getFavoriteData  } from '../services/agendaService';
-
+import Toast from 'react-native-toast-message'; 
+import { downloadBrochure } from '../utils/downloadBrochure';
 const defaultImage = require('../assets/default.jpg');
 
 type Props = CompositeScreenProps<
@@ -39,9 +37,47 @@ type Props = CompositeScreenProps<
 type AgendaTab = 'Day 1' | 'Day 2' | 'Favorite Sessions';
 type FilterPanel = 'tracks' | 'categories' | 'speakers' | 'halls';
 
+type AgendaSpeaker = {
+  id?: string | number;
+  speaker_name?: string;
+  speaker_designation?: string;
+  speaker_company?: string;
+  speaker_image?: string;
+  avatar?: string;
+  avatarUrl?: string;
+  initials?: string;
+};
+
+type AgendaSession = {
+  session_id: number | string;
+  session_details?: string;
+  session_categories?: string;
+  session_timeline?: string;
+  session_date?: string;
+  session_halls?: string;
+  session_track?: string;
+  time?: string;
+  duration?: string;
+  timeline?: string;
+  favorite?: boolean | number;
+  speakers?: AgendaSpeaker[];
+};
+
+type AgendaData = {
+  day1?: AgendaSession[];
+  day2?: AgendaSession[];
+};
+
+type FilterData = {
+  tracks: Array<{ session_track: string }>;
+  categories: Array<{ session_categories: string }>;
+  halls: Array<{ session_halls: string }>;
+  speakers: Array<{ speaker_name: string }>;
+};
+
 const tabMeta: Record<AgendaTab, string> = {
-  'Day 1': 'Thu, Jun 25, 2026',
-  'Day 2': 'Fri, Jun 26, 2026',
+  'Day 1': 'Fri, 3rd July, 2026',
+  'Day 2': 'Sat, 4th July, 2026',
   'Favorite Sessions': 'No Sessions'
 };
 
@@ -85,6 +121,10 @@ const iconForTrack: Record<Track, keyof typeof Ionicons.glyphMap> = {
   Break: 'cafe-outline'
 };
 
+function getTrackIcon(track?: string): keyof typeof Ionicons.glyphMap {
+  return track && track in iconForTrack ? iconForTrack[track as Track] : 'calendar-outline';
+}
+
 export function AgendaScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<AgendaTab>('Day 1');
@@ -95,20 +135,21 @@ export function AgendaScreen({ navigation }: Props) {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedSpeakers, setSelectedSpeakers] = useState<string[]>([]);
   const [selectedHalls, setSelectedHalls] = useState<string[]>([]);
-  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [selectedSession, setSelectedSession] = useState<AgendaSession | null>(null);
   const [activeFilterPanel, setActiveFilterPanel] = useState<FilterPanel>('categories');
   const [selectedTracks, setSelectedTracks] = useState<string[]>([]);
   const selectedSessionSpeakers = selectedSession?.speakers || [];
-  const [agendaData, setAgendaData] = useState<any>(null);
+  const [agendaData, setAgendaData] = useState<AgendaData | null>(null);
+  const [agendaLoading, setAgendaLoading] = useState(true);
   const [filterSearch, setFilterSearch] = useState('');
   
-  const [filterData, setFilterData] = useState({
+  const [filterData, setFilterData] = useState<FilterData>({
     tracks: [],
     categories: [],
     halls: [],
     speakers: []
   });
-  const [favoriteSessions, setFavoriteSessions] = useState([]);
+  const [favoriteSessions, setFavoriteSessions] = useState<AgendaSession[]>([]);
 
 
 
@@ -116,15 +157,23 @@ export function AgendaScreen({ navigation }: Props) {
   useEffect(() => {loadAgenda();}, []);
   const summary = "Formal opening of NOSHE-2026 with dignitaries, industry leaders, and occupational health and safery experts";
   const loadAgenda = async () => {
-    const response = await getAgendaData({
-      track: [],
-      categories: [],
-      halls: [],
-      speakers: []
-    });
+    setAgendaLoading(true);
+    try {
+      const response = await getAgendaData({
+        track: [],
+        categories: [],
+        halls: [],
+        speakers: []
+      });
 
-    if (response.success) {
-      setAgendaData(response.data);
+      if (response.success) {
+        setAgendaData(response.data);
+      }
+    }
+    catch(error){
+      Alert.alert(error instanceof Error ? error.message : String(error));
+    } finally {
+      setAgendaLoading(false);
     }
   };
 
@@ -147,26 +196,39 @@ export function AgendaScreen({ navigation }: Props) {
 }, [activeTab, agendaData, favoriteSessions]);
   const applyFilters = async () => {
     const token = await AsyncStorage.getItem('token');
+    setAgendaLoading(true);
 
-    const response = await getAgendaData({
-      track: selectedTracks,
-      categories: selectedCategories,
-      halls: selectedHalls,
-      speakers: selectedSpeakers
-    });
+    try {
+      const response = await getAgendaData({
+        track: selectedTracks,
+        categories: selectedCategories,
+        halls: selectedHalls,
+        speakers: selectedSpeakers
+      });
 
-    if (response.success) {
-      setAgendaData(response.data);
-      setFilterSearch('');
-      setFilterSheetOpen(false);
+      if (response.success) {
+        setAgendaData(response.data);
+        setFilterSearch('');
+        setFilterSheetOpen(false);
+      }
+    } finally {
+      setAgendaLoading(false);
     }
+  };
+
+  const showToast = async(message:any) => {
+    Toast.show({
+      type: 'success', 
+      text1: message,
+      position: 'bottom', 
+      visibilityTime: 2200,
+      bottomOffset: 92
+    });
   };
 
   const openFilterModal = async () => {
     setFilterSheetOpen(true);
-
     const response = await getFilterData( '');
-
     if (response.success) {
       setFilterData(response.data);
     }
@@ -174,54 +236,41 @@ export function AgendaScreen({ navigation }: Props) {
 
   const handleFilterSearch = async (text: string) => {
     setFilterSearch(text);
-
-
     const response = await getFilterData(text);
-
     if (response.success) {
       setFilterData(response.data);
     }
   };
 
 
-const handleFavorite = async (session) => {
-  const favoriteValue = session.favorite ? 0 : 1;
+const handleFavorite = async (session: AgendaSession) => {
+    try{
+    const favoriteValue = session.favorite ? 0 : 1;
+      const response = await toggleFavorite(
+        Number(session.session_id),favoriteValue);
 
-    const response = await toggleFavorite(
-      session.session_id,favoriteValue);
+      if (response.success) {
+        await showToast(response.message)
+        const res = await getAgendaData({
+            track: [],
+            categories: [],
+            halls: [],
+            speakers: []
+          });
 
-    if (response.success) {
-      // setAgendaData((prev) => ({
-      //   ...prev,
-      //   day1: prev.day1?.map((item) =>
-      //     item.session_id === session.session_id
-      //       ? {
-      //           ...item,
-      //           is_favorite: !item.ifavorite
-      //         }
-      //       : item
-      //   ),
-      //   day2: prev.day2?.map((item) =>
-      //     item.session_id === session.session_id
-      //       ? {
-      //           ...item,
-      //           is_favorite: !item.favorite
-      //         }
-      //       : item
-      //   )
-      // }));
-   const response = await getAgendaData({
-      track: [],
-      categories: [],
-      halls: [],
-      speakers: []
-    });
-
-    if (response.success) {
-      setAgendaData(response.data);
-    }
+        if (res.success) {
+          setAgendaData(res.data);
+        }
+        await handleTabPress('Favorite Sessions');
+      }
+      else {
+              await showToast(response.message)
+      }
+    }catch(error){
+        await showToast(error)
     }
   };
+
   const toggleFilterPanel = (panel: FilterPanel) => {
     LayoutAnimation.configureNext({
       duration: 220,
@@ -239,26 +288,32 @@ const handleFavorite = async (session) => {
     });
     setActiveFilterPanel(panel);
   };
-  const clearFilters = async () => {
-  setSelectedTracks([]);
-  setSelectedCategories([]);
-  setSelectedHalls([]);
-  setSelectedSpeakers([]);
-  
-  const response = await getAgendaData({
-    track: [],
-    categories: [],
-    halls: [],
-    speakers: []
-  });
 
-  if (response.success) {
-    setAgendaData(response.data);
-      setFilterSearch('');
-    setFilterSheetOpen(false);
+  const clearFilters = async () => {
+    setSelectedTracks([]);
+    setSelectedCategories([]);
+    setSelectedHalls([]);
+    setSelectedSpeakers([]);
+    setAgendaLoading(true);
     
-  }
-};
+    try {
+      const response = await getAgendaData({
+        track: [],
+        categories: [],
+        halls: [],
+        speakers: []
+      });
+
+      if (response.success) {
+        setAgendaData(response.data);
+        setFilterSearch('');
+        setFilterSheetOpen(false);
+      
+      }
+    } finally {
+      setAgendaLoading(false);
+    }
+  };
 
 //   const visibleSessions = useMemo(() => {
 //   if (!agendaData) return [];
@@ -282,11 +337,24 @@ const handleTabPress = async (tab: AgendaTab) => {
   setActiveTab(tab);
 
   if (tab === 'Favorite Sessions') {
-    const response = await getFavoriteData();
+    setAgendaLoading(true);
+    try {
+      const response = await getFavoriteData();
 
-    if (response.success) {
-      setFavoriteSessions(response.data);
+      if (response.success) {
+        setFavoriteSessions(response.data);
+      }
+    } finally {
+      setAgendaLoading(false);
     }
+  }
+};
+
+const handleDownloadBrochure = async () => {
+  try {
+    await downloadBrochure();
+  } catch {
+    Alert.alert('Download failed', 'Unable to open the brochure. Please try again.');
   }
 };
 
@@ -307,21 +375,27 @@ const handleTabPress = async (tab: AgendaTab) => {
     >
      <View style={styles.actionRow}>
           <Pressable
-            style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
+            onPress={() => navigation.navigate('Tickets')}
+            style={({ pressed }) => [styles.actionBtn, styles.actionBtnPrimary, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Register now"
           >
-            <View style={styles.actionIcon}>
-              <Ionicons name="print-outline" size={18} color={theme.colors.navy} />
+            <View style={styles.actionIconPrimary}>
+              <Ionicons name="person-add-outline" size={18} color={theme.colors.white} />
             </View>
-            <Text style={styles.actionText}>Print Agenda</Text>
+            <Text style={styles.actionTextPrimary}>Register Now</Text>
           </Pressable>
 
           <Pressable
-            style={({ pressed }) => [styles.actionBtn, styles.actionBtnPrimary, pressed && styles.pressed]}
+            onPress={handleDownloadBrochure}
+            style={({ pressed }) => [styles.actionBtn, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Download brochure"
           >
-            <View style={styles.actionIconPrimary}>
-              <Ionicons name="download-outline" size={18} color={theme.colors.white} />
+            <View style={styles.actionIcon}>
+              <Ionicons name="download-outline" size={18} color={theme.colors.navy} />
             </View>
-            <Text style={styles.actionTextPrimary}>Download Brochure</Text>
+            <Text style={styles.actionText}>Download Brochure</Text>
           </Pressable>
         </View>
 
@@ -360,7 +434,9 @@ const handleTabPress = async (tab: AgendaTab) => {
       </View>
 
       <View style={styles.timeline}>
-        {visibleSessions.length === 0 ? (
+        {agendaLoading ? (
+          <AgendaSkeletonList />
+        ) : visibleSessions.length === 0 ? (
           <View style={styles.emptyCard}>
             <View style={styles.emptyGlow} />
             <View style={[styles.emptyIconWrap, { borderColor: `${emptyState.accent}33` }]}>
@@ -395,19 +471,13 @@ const handleTabPress = async (tab: AgendaTab) => {
                 <Text style={styles.trackTag}>
                   {session.session_categories}
                    </Text>
-                   <Pressable
-                    hitSlop={10}
+                   <BookmarkButton
+                    active={Boolean(session.favorite)}
                     onPress={() => {
                       console.log("Favorite clicked");
                       handleFavorite(session);
                     }}
-                  >
-                    <Ionicons
-                      name={session.favorite ? "bookmark" : "bookmark-outline"}
-                      size={24}
-                      color={theme.colors.orange}
-                    />
-                  </Pressable>
+                  />
                </View>
 
                 <Text style={styles.sessionTitle}>
@@ -502,7 +572,7 @@ const handleTabPress = async (tab: AgendaTab) => {
 
                 <View style={styles.sessionModalTrackPill}>
                   <Ionicons
-                    name={iconForTrack[selectedSession.session_track]}
+                    name={getTrackIcon(selectedSession.session_track)}
                     size={14}
                     color={theme.colors.orange}
                   />
@@ -520,7 +590,7 @@ const handleTabPress = async (tab: AgendaTab) => {
                     {selectedSession.session_date}, {(selectedSession.timeline)} (IST)
                   </Text>
                 </View>
-                {selectedSession.hall ? (
+                {selectedSession.session_halls ? (
                   <View style={styles.sessionModalInfoCard}>
                     <View style={styles.sessionModalInfoIcon}>
                       <Ionicons name="location-outline" size={18} color={theme.colors.orange} />
@@ -892,20 +962,65 @@ function FilterOption({
   );
 }
 
+function BookmarkButton({ active, onPress }: { active: boolean; onPress: () => void }) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePress = () => {
+    Animated.sequence([
+      Animated.spring(scale, {
+        toValue: 1.18,
+        friction: 4,
+        tension: 160,
+        useNativeDriver: true
+      }),
+      Animated.spring(scale, {
+        toValue: 1,
+        friction: 5,
+        tension: 140,
+        useNativeDriver: true
+      })
+    ]).start();
+
+    onPress();
+  };
+
+  return (
+    <Pressable
+      hitSlop={10}
+      onPress={handlePress}
+      style={({ pressed }) => [
+        styles.bookmarkButton,
+        active && styles.bookmarkButtonActive,
+        pressed && styles.bookmarkButtonPressed
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={active ? 'Remove bookmark' : 'Bookmark session'}
+    >
+      <Animated.View style={{ transform: [{ scale }] }}>
+        <Ionicons
+          name={active ? 'bookmark' : 'bookmark-outline'}
+          size={24}
+          color={theme.colors.orange}
+        />
+      </Animated.View>
+    </Pressable>
+  );
+}
+
 function AgendaTimelineItem({
   session,
   onPress
 }: {
-  session: Session;
+  session: AgendaSession;
   onPress: () => void;
 }) {
-  const linkedSpeakers = speakers.filter((speaker) => session.speakerIds.includes(speaker.id));
+  const linkedSpeakers = session.speakers ?? [];
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.timelineItem, pressed && styles.pressed]}>
       <View style={styles.iconColumn}>
         <View style={styles.sessionIcon}>
-          <Ionicons name={iconForTrack[session.track]} size={18} color={theme.colors.white} />
+          <Ionicons name={getTrackIcon(session.session_track)} size={18} color={theme.colors.white} />
         </View>
       </View>
       <View style={styles.sessionPanel}>
@@ -918,10 +1033,10 @@ function AgendaTimelineItem({
             <Ionicons name="time-outline" size={14} color={theme.colors.orange} />
             <Text style={styles.metaText}>{session.time} • {session.duration}</Text>
           </View>
-          {session.hall ? (
+          {session.session_halls ? (
             <View style={styles.metaItem}>
               <Ionicons name="location" size={14} color={theme.colors.muted} />
-              <Text style={styles.metaText}>{session.hall}</Text>
+              <Text style={styles.metaText}>{session.session_halls}</Text>
             </View>
           ) : null}
         </View>
@@ -940,6 +1055,34 @@ function AgendaTimelineItem({
         ) : null}
       </View>
     </Pressable>
+  );
+}
+
+function AgendaSkeletonList() {
+  return (
+    <>
+      {[0, 1, 2].map((item) => (
+        <View key={item} style={styles.timelineItem}>
+          <View style={styles.sessionPanel}>
+            <View style={styles.skeletonTopRow}>
+              <View style={[styles.skeletonBlock, styles.skeletonTag]} />
+              <View style={[styles.skeletonBlock, styles.skeletonBookmark]} />
+            </View>
+            <View style={[styles.skeletonBlock, styles.skeletonTitle]} />
+            <View style={[styles.skeletonBlock, styles.skeletonTitleShort]} />
+            <View style={styles.skeletonMetaRow}>
+              <View style={[styles.skeletonBlock, styles.skeletonMeta]} />
+              <View style={[styles.skeletonBlock, styles.skeletonMetaShort]} />
+            </View>
+            <View style={styles.skeletonAvatarRow}>
+              {[0, 1, 2].map((avatar) => (
+                <View key={avatar} style={[styles.skeletonBlock, styles.skeletonAvatar]} />
+              ))}
+            </View>
+          </View>
+        </View>
+      ))}
+    </>
   );
 }
 
@@ -1132,6 +1275,63 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 3
   },
+  skeletonTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10
+  },
+  skeletonMetaRow: {
+    flexDirection: 'row',
+    gap: 8
+  },
+  skeletonAvatarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 3,
+    marginTop: 2
+  },
+  skeletonBlock: {
+    backgroundColor: '#E8F0F8'
+  },
+  skeletonTag: {
+    width: 118,
+    height: 24,
+    borderRadius: theme.radius.pill
+  },
+  skeletonBookmark: {
+    width: 24,
+    height: 24,
+    borderRadius: 12
+  },
+  skeletonTitle: {
+    width: '86%',
+    height: 18,
+    borderRadius: 9
+  },
+  skeletonTitleShort: {
+    width: '62%',
+    height: 18,
+    borderRadius: 9
+  },
+  skeletonMeta: {
+    width: 132,
+    height: 16,
+    borderRadius: 8
+  },
+  skeletonMetaShort: {
+    width: 88,
+    height: 16,
+    borderRadius: 8
+  },
+  skeletonAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: theme.colors.white,
+    marginLeft: -4
+  },
   pressed: {
     opacity: 0.86
   },
@@ -1157,6 +1357,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10
+  },
+  bookmarkButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF6EF'
+  },
+  bookmarkButtonActive: {
+    backgroundColor: '#FFE8D8'
+  },
+  bookmarkButtonPressed: {
+    opacity: 0.78
   },
   trackTag: {
     color: theme.colors.navy,

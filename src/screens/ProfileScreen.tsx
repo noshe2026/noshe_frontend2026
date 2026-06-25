@@ -21,23 +21,23 @@ type Props = CompositeScreenProps<
 
 const primaryItems = [
   {
-    title: 'About NOSHE 2026',
-    subtitle: 'Event vision, theme, and conference overview',
+    title: 'About Us',
+    subtitle: 'NTPC Limited and NOSHE 2026 overview',
     icon: 'information-circle-outline',
     route: 'About'
   },
-  {
-    title: 'Foreword',
-    subtitle: 'Message from the event leadership',
-    icon: 'document-text-outline',
-    route: 'Foreword'
-  },
-  {
-    title: 'Organisers',
-    subtitle: 'Organising partners and event committee',
-    icon: 'business-outline',
-    route: 'Organisers'
-  },
+  // {
+  //   title: 'Foreword',
+  //   subtitle: 'Message from the event leadership',
+  //   icon: 'document-text-outline',
+  //   route: 'Foreword'
+  // },
+  // {
+  //   title: 'Organisers',
+  //   subtitle: 'Organising partners and event committee',
+  //   icon: 'business-outline',
+  //   route: 'Organisers'
+  // },
   {
     title: 'Delegate Registration',
     subtitle: 'Registration categories and delegate access',
@@ -53,7 +53,7 @@ const primaryItems = [
 ] as const;
 
 export function ProfileScreen({ navigation }: Props) {
-  const { attendee } = useAttendeeAuth();
+  const { attendee, logout } = useAttendeeAuth();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
     useFocusEffect(
       useCallback(() => {
@@ -73,23 +73,23 @@ export function ProfileScreen({ navigation }: Props) {
 
   };
 
-  // const confirmLogout = () => {
-  //   Alert.alert(
-  //     'Logout from attendee access?',
-  //     'Your QR pass and dashboard will be hidden until you login again.',
-  //     [
-  //       {
-  //         text: 'Cancel',
-  //         style: 'cancel'
-  //       },
-  //       {
-  //         text: 'Logout',
-  //         style: 'destructive',
-  //         onPress: handleLogout
-  //       }
-  //     ]
-  //   );
-  // };
+  const confirmLogout = () => {
+    Alert.alert(
+      'Logout from attendee access?',
+      'Your QR pass and dashboard will be hidden until you login again.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: handleLogout
+        }
+      ]
+    );
+  };
   const handleLogout = async() => {
     try {
 
@@ -99,12 +99,12 @@ export function ProfileScreen({ navigation }: Props) {
     if (uid && token) {
       await logoutUser(uid, token);
     }
-    await AsyncStorage.removeMany([
+    await AsyncStorage.multiRemove([
       'uid',
       'token',
     ]);
     setIsLoggedIn(false);
-    // logout();
+    logout();
 
     Alert.alert(
       'Success',
@@ -189,6 +189,12 @@ export function ProfileScreen({ navigation }: Props) {
           onPress={() => navigation.navigate('Contact')}
         />
         <MoreCard
+          icon="chatbox-ellipses-outline"
+          title="Conference Secretariat"
+          subtitle="Send a message to the NOSHE 2026 contact team"
+          onPress={() => navigation.navigate('ConferenceSecretariat')}
+        />
+        <MoreCard
           icon="shield-checkmark-outline"
           title="Privacy Policy"
           subtitle="Camera, registration, and attendee data use"
@@ -203,7 +209,7 @@ export function ProfileScreen({ navigation }: Props) {
             title="Logout"
             subtitle="Sign out from attendee access on this device"
             tone="danger"
-            onPress={handleLogout}
+            onPress={confirmLogout}
           />
         </View>
       ) : null}

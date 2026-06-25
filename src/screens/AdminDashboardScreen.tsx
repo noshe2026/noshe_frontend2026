@@ -10,7 +10,7 @@ import { Screen } from '../components/Screen';
 import { RootStackParamList } from '../navigation/types';
 import { theme } from '../theme/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getDashboardData ,logout} from '../services/adminService';
+import { getDashboardData ,logout, getWaitingList} from '../services/adminService';
 import {scanAttendee } from '../services/scannerService';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AdminDashboard'>;
@@ -22,23 +22,31 @@ type AttendanceStat = {
   key: AttendanceType;
 };
 
-const attendanceStats = [
-  { label: 'Total register', value: '186', icon: 'people-outline' },
-  { label: 'Total Checked-in', value: '124', icon: 'sunny-outline' }
-] as const;
+function getNameInitial(name?: string) {
+  return name?.trim().charAt(0).toUpperCase() || 'N';
+}
 
-const attendanceTimes = [
-  { name: 'Dr. Ananya Rao', role: 'Speaker', time: '10:02 AM', status: 'Checked in' },
-  { name: 'Vikram Mehta', role: 'Delegate', time: '10:18 AM', status: 'Checked in' },
-  { name: 'Nisha Menon', role: 'Speaker', time: '11:05 AM', status: 'Checked in' },
-  { name: 'Amitabh Sen', role: 'Delegate', time: '12:12 PM', status: 'Checked in' }
-] as const;
+function formatRegisteredDate(date?: string) {
+  if (!date) {
+    return 'N/A';
+  }
+
+  const datePart = date.split(' ')[0];
+  const parts = datePart.split('-');
+
+  if (parts.length !== 3) {
+    return datePart;
+  }
+
+  return parts.reverse().join('-');
+}
 
 export function AdminDashboardScreen({ navigation }: Props) {
   const [selectedTab, setSelectedTab] = useState('registered');
   const [selectedType, setSelectedType] =
   useState<AttendanceType>('participants');
   const [dashboardData, setDashboardData] = useState<any>(null);
+  
   const [loading, setLoading] = useState(true);
   useEffect(() => { fetchDashboard();}, []);
   const [permission, requestPermission] = useCameraPermissions();
@@ -61,6 +69,7 @@ export function AdminDashboardScreen({ navigation }: Props) {
 
   useFocusEffect(
     useCallback(() => {
+      fetchDashboard()
       const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
         if (scannerActive) {
           setScannerActive(false);
@@ -92,9 +101,7 @@ export function AdminDashboardScreen({ navigation }: Props) {
      try {
         setScannerActive(false);
         console.log('Scanned Value:', data);
-        const response = await scanAttendee({
-          qr_code: data
-        });
+        const response = await scanAttendee(data);
 
       if (response.success) {
           // setLatestScan(response.data);
@@ -131,21 +138,30 @@ export function AdminDashboardScreen({ navigation }: Props) {
       if (response.success) {
         setDashboardData(response.data);
       }
-    } catch (error) {
+      else if(response?.code && response?.code =="TOKEN_EXPIRED"){
+           await confirmLogout();
+      }
+    } catch (error:any) {
+      if (
+        error?.response &&
+        error.response.data?.code === "TOKEN_EXPIRED"
+    ) {
+      await confirmLogout();
+    }
       console.log(error);
     } finally {
       setLoading(false);
     }
   };
-
-   const handleLogout = async() => {
+  
+   const confirmLogout = async() => {
     try {
 
     const adminid = await AsyncStorage.getItem('adminuid');
     if (adminid) {
       await logout( adminid);
     }
-    await AsyncStorage.removeMany(['adminToken','adminuid']);
+    await AsyncStorage.multiRemove(['adminToken','adminuid']);
 
     Alert.alert(
       'Success',
@@ -162,17 +178,66 @@ export function AdminDashboardScreen({ navigation }: Props) {
 
   }
    }
+
+   const handleLogout = () => {
+    Alert.alert(
+      'Are you sure?',
+      'Do you want to logout from the admin dashboard?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: confirmLogout
+        }
+      ]
+    );
+   };
   
   if (loading) {
   return (
-    <Screen>
-      <Text>Loading...</Text>
-    </Screen>
+    <AdminDashboardSkeleton />
   );
 }
 
+  const selectedAttendance = Array.isArray(dashboardData?.[0]?.[selectedType])
+    ? dashboardData[0][selectedType]
+    : [];
+  const attendancePlaceholder =
+    selectedType === 'participants'
+      ? 'Registered attendees will appear here once data is available.'
+      : 'Checked-in attendees will appear here after QR scans are completed.';
+  const approvalRequests =
+    dashboardData?.[0]?.waitingForApproval ||
+    dashboardData?.[0]?.approvalRequests ||
+    dashboardData?.[0]?.pendingApprovals ||
+    [];
+  const approvalCount = Array.isArray(approvalRequests) ? approvalRequests.length : 0;
+
   return (
-    <Screen refreshable>
+    <Screen
+      refreshable
+      floating={
+        <SafeAreaView edges={['bottom', 'left', 'right']} style={styles.logoutFooter}>
+          <Pressable
+            onPress={handleLogout}
+            style={({ pressed }) => [styles.logoutButton, pressed && styles.pressed]}
+          >
+            <View style={styles.logoutIcon}>
+              <Ionicons name="log-out-outline" size={19} color="#DC2626" />
+            </View>
+            <View style={styles.logoutCopy}>
+              <Text style={styles.logoutTitle}>Logout</Text>
+              <Text style={styles.logoutText}>Exit admin dashboard</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={theme.colors.muted} />
+          </Pressable>
+        </SafeAreaView>
+      }
+    >
       <LinearGradient
         colors={['#08244D', '#004EA8', '#1684D8']}
         start={{ x: 0, y: 0 }}
@@ -186,17 +251,20 @@ export function AdminDashboardScreen({ navigation }: Props) {
       </LinearGradient>
 
       <Pressable
-        onPress={handleLogout}
-        style={({ pressed }) => [styles.logoutButton, pressed && styles.pressed]}
+        onPress={() => navigation.navigate('ApprovalRequests')}
+        style={({ pressed }) => [styles.approvalCard, pressed && styles.pressed]}
       >
-        <View style={styles.logoutIcon}>
-          <Ionicons name="log-out-outline" size={19} color="#DC2626" />
+        <View style={styles.approvalIcon}>
+          <Ionicons name="time-outline" size={24} color={theme.colors.orange} />
         </View>
-        <View style={styles.logoutCopy}>
-          <Text style={styles.logoutTitle}>Logout</Text>
-          <Text style={styles.logoutText}>Exit admin dashboard</Text>
+        <View style={styles.approvalCopy}>
+          <Text style={styles.approvalEyebrow}>Registration Requests</Text>
+          <Text style={styles.approvalTitle}>Waiting for approval</Text>
         </View>
-        <Ionicons name="chevron-forward" size={18} color={theme.colors.muted} />
+        <View style={styles.approvalMeta}>
+          {/* <Text style={styles.approvalCount}>{approvalCount}</Text> */}
+          <Ionicons name="chevron-forward" size={18} color={theme.colors.muted} />
+        </View>
       </Pressable>
 
       <View style={styles.statsGrid}>
@@ -301,17 +369,88 @@ export function AdminDashboardScreen({ navigation }: Props) {
       </View>
 
       <View style={styles.attendanceList}>
-       {Array.isArray(dashboardData?.[0]?.[selectedType]) && dashboardData?.[0]?.[selectedType]?.map(
-          (item: any, index: number) => (
+        {selectedAttendance.length > 0 ? (
+          selectedAttendance.map((item: any, index: number) => (
             <View key={index} style={styles.attendanceCard}>
-              <View style={styles.timeBadge}>
-              <Text style={styles.timeText}>{item.registered_date ? (((item.registered_date.split(" ")[0]).split('-')).reverse()).join('-') : "N/A"}</Text>
+              <View style={styles.initialBadge}>
+              <Text style={styles.initialText}>{getNameInitial(item.name)}</Text>
             </View>
             <View style={styles.attendanceCopy}>
               <Text style={styles.attendeeName}>{item.name}</Text>
               <Text style={styles.attendeeRole}>{item.email_id}</Text>
+              <Text style={styles.attendeeDate}>{formatRegisteredDate(item.registered_date)}</Text>
             </View>
-          </View>))}
+          </View>))
+        ) : (
+          <View style={styles.attendancePlaceholder}>
+            <View style={styles.attendancePlaceholderIcon}>
+              <Ionicons name="calendar-clear-outline" size={24} color={theme.colors.orange} />
+            </View>
+            <Text style={styles.attendancePlaceholderTitle}>No attendance data</Text>
+            <Text style={styles.attendancePlaceholderText}>{attendancePlaceholder}</Text>
+          </View>
+        )}
+      </View>
+      <View style={styles.footerSpacer} />
+    </Screen>
+  );
+}
+
+function AdminDashboardSkeleton() {
+  return (
+    <Screen>
+      <View style={styles.skeletonHero}>
+        <View style={[styles.skeletonBlock, styles.skeletonEyebrow]} />
+        <View style={[styles.skeletonBlock, styles.skeletonHeroTitle]} />
+        <View style={[styles.skeletonBlock, styles.skeletonHeroLine]} />
+      </View>
+
+      <View style={styles.skeletonApprovalCard}>
+        <View style={[styles.skeletonBlock, styles.skeletonRoundIcon]} />
+        <View style={styles.skeletonCopy}>
+          <View style={[styles.skeletonBlock, styles.skeletonLineShort]} />
+          <View style={[styles.skeletonBlock, styles.skeletonLine]} />
+        </View>
+      </View>
+
+      <View style={styles.statsGrid}>
+        {[0, 1].map((item) => (
+          <View key={item} style={styles.statCard}>
+            <View style={[styles.skeletonBlock, styles.skeletonStatIcon]} />
+            <View style={[styles.skeletonBlock, styles.skeletonStatValue]} />
+            <View style={[styles.skeletonBlock, styles.skeletonStatLabel]} />
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.skeletonScannerCard}>
+        <View style={styles.skeletonApprovalCardInner}>
+          <View style={[styles.skeletonBlock, styles.skeletonRoundIcon]} />
+          <View style={styles.skeletonCopy}>
+            <View style={[styles.skeletonBlock, styles.skeletonLineShort]} />
+            <View style={[styles.skeletonBlock, styles.skeletonLineWide]} />
+          </View>
+        </View>
+        <View style={[styles.skeletonBlock, styles.skeletonScannerBox]} />
+        <View style={[styles.skeletonBlock, styles.skeletonButton]} />
+      </View>
+
+      <View style={styles.sectionHeader}>
+        <View style={[styles.skeletonBlock, styles.skeletonSectionEyebrow]} />
+        <View style={[styles.skeletonBlock, styles.skeletonSectionTitle]} />
+      </View>
+
+      <View style={styles.attendanceList}>
+        {[0, 1, 2].map((item) => (
+          <View key={item} style={styles.attendanceCard}>
+            <View style={[styles.skeletonBlock, styles.skeletonInitial]} />
+            <View style={styles.skeletonCopy}>
+              <View style={[styles.skeletonBlock, styles.skeletonLine]} />
+              <View style={[styles.skeletonBlock, styles.skeletonLineWide]} />
+              <View style={[styles.skeletonBlock, styles.skeletonLineShort]} />
+            </View>
+          </View>
+        ))}
       </View>
     </Screen>
   );
@@ -362,6 +501,66 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     marginTop: 8
   },
+  approvalCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: 22,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#E8F0F8',
+    shadowColor: '#0F4070',
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 16,
+    elevation: 3
+  },
+  approvalIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 18,
+    backgroundColor: '#FFF6EF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#FFE2CF'
+  },
+  approvalCopy: {
+    flex: 1,
+    minWidth: 0
+  },
+  approvalEyebrow: {
+    color: theme.colors.orange,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '600',
+    textTransform: 'uppercase'
+  },
+  approvalTitle: {
+    color: theme.colors.text,
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '700',
+    marginTop: 2
+  },
+  approvalMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  approvalCount: {
+    minWidth: 32,
+    minHeight: 32,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#F3F8FD',
+    color: theme.colors.navy,
+    fontSize: 14,
+    lineHeight: 32,
+    fontWeight: '800',
+    textAlign: 'center'
+  },
   logoutButton: {
     backgroundColor: theme.colors.white,
     borderRadius: 22,
@@ -376,6 +575,18 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowRadius: 16,
     elevation: 3
+  },
+  logoutFooter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: 10,
+    paddingBottom: 10,
+    backgroundColor: 'rgba(244,250,255,0.96)',
+    borderTopWidth: 1,
+    borderTopColor: '#DCEAF5'
   },
   logoutIcon: {
     width: 46,
@@ -689,6 +900,47 @@ const styles = StyleSheet.create({
   attendanceList: {
     gap: 12
   },
+  attendancePlaceholder: {
+    minHeight: 166,
+    backgroundColor: theme.colors.white,
+    borderRadius: 19,
+    padding: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E8F0F8',
+    shadowColor: '#0F4070',
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 16,
+    elevation: 3
+  },
+  attendancePlaceholderIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 17,
+    backgroundColor: '#FFF6EF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#FFE2CF',
+    marginBottom: 10
+  },
+  attendancePlaceholderTitle: {
+    color: theme.colors.text,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '700',
+    textAlign: 'center'
+  },
+  attendancePlaceholderText: {
+    color: theme.colors.muted,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: '400',
+    textAlign: 'center',
+    marginTop: 5
+  },
   attendanceCard: {
     backgroundColor: theme.colors.white,
     borderRadius: 19,
@@ -704,21 +956,21 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 3
   },
-  timeBadge: {
+  initialBadge: {
     width: 76,
     minHeight: 54,
     borderRadius: 16,
-    backgroundColor: '#F3F8FD',
+    backgroundColor: '#FFF6EF',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E2ECF6'
+    borderColor: '#FFE2CF'
   },
-  timeText: {
+  initialText: {
     color: theme.colors.navy,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '600'
+    fontSize: 24,
+    lineHeight: 30,
+    fontWeight: '800'
   },
   attendanceCopy: {
     flex: 1,
@@ -736,6 +988,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: '400',
     marginTop: 2
+  },
+  attendeeDate: {
+    color: theme.colors.orange,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '600',
+    marginTop: 4
   },
   statusPill: {
     flexDirection: 'row',
@@ -757,5 +1016,118 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     fontWeight: '500'
+  },
+  footerSpacer: {
+    height: 102
+  },
+  skeletonBlock: {
+    backgroundColor: '#DFEAF4',
+    borderRadius: 999
+  },
+  skeletonHero: {
+    borderRadius: 28,
+    padding: 18,
+    minHeight: 170,
+    justifyContent: 'flex-end',
+    gap: 10,
+    backgroundColor: '#DDECF8'
+  },
+  skeletonEyebrow: {
+    width: 118,
+    height: 14,
+    backgroundColor: '#C6DBEE'
+  },
+  skeletonHeroTitle: {
+    width: '76%',
+    height: 32,
+    backgroundColor: '#BFD6EA'
+  },
+  skeletonHeroLine: {
+    width: '92%',
+    height: 16,
+    backgroundColor: '#C6DBEE'
+  },
+  skeletonApprovalCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: 22,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#E8F0F8'
+  },
+  skeletonApprovalCardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12
+  },
+  skeletonRoundIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 18
+  },
+  skeletonCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 8
+  },
+  skeletonLineShort: {
+    width: '42%',
+    height: 12
+  },
+  skeletonLine: {
+    width: '64%',
+    height: 16
+  },
+  skeletonLineWide: {
+    width: '82%',
+    height: 14
+  },
+  skeletonStatIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 15
+  },
+  skeletonStatValue: {
+    width: 58,
+    height: 30
+  },
+  skeletonStatLabel: {
+    width: 86,
+    height: 13
+  },
+  skeletonScannerCard: {
+    backgroundColor: theme.colors.white,
+    borderRadius: 22,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E8F0F8',
+    gap: 13
+  },
+  skeletonScannerBox: {
+    height: 150,
+    borderRadius: 18,
+    alignSelf: 'stretch'
+  },
+  skeletonButton: {
+    width: 132,
+    height: 46,
+    borderRadius: 23,
+    alignSelf: 'flex-end'
+  },
+  skeletonSectionEyebrow: {
+    width: 98,
+    height: 12,
+    marginBottom: 8
+  },
+  skeletonSectionTitle: {
+    width: 184,
+    height: 26
+  },
+  skeletonInitial: {
+    width: 76,
+    height: 54,
+    borderRadius: 16
   }
 });

@@ -1,42 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useState } from 'react';
-import { ImageBackground, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { theme } from '../theme/theme';
 import { EventInfo } from '../types';
 
-const slideImages = [
-  require('../assets/slide-1.jpeg'),
-  require('../assets/slide-2.jpeg'),
-  require('../assets/slide-3.jpeg')
-];
-
-const eventTime = '10:00 AM - 7:00 PM';
+const eventTheme = 'Stronger SHE for Building a Brighter Tomorrow';
 
 export function EventCard({ event }: { event: EventInfo }) {
-  const [activeSlide, setActiveSlide] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(
-      () => setActiveSlide((index) => (index + 1) % slideImages.length),
-      4500
-    );
-
-    return () => clearInterval(interval);
-  }, []);
-
   return (
-    <ImageBackground
-      source={slideImages[activeSlide]}
+    <LinearGradient
+      colors={['#06152E', '#063E83', '#0A78C8']}
+      locations={[0, 0.62, 1]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
       style={styles.card}
-      imageStyle={styles.image}
-      resizeMode="cover"
     >
       <LinearGradient
         colors={[
-          'rgba(4, 13, 30, 0.96)',
-          'rgba(5, 30, 65, 0.76)',
-          'rgba(0, 78, 168, 0.5)'
+          'rgba(4, 13, 30, 0.38)',
+          'rgba(5, 30, 65, 0.2)',
+          'rgba(0, 78, 168, 0.08)'
         ]}
         locations={[0, 0.58, 1]}
         style={styles.overlay}
@@ -45,37 +28,27 @@ export function EventCard({ event }: { event: EventInfo }) {
       <View style={styles.accentGlowSoft} />
 
       <View style={styles.cardContent}>
-        <View style={styles.heroTopline}>
+        {/* <View style={styles.heroTopline}>
           <View style={styles.toplineRule} />
           <Text style={styles.toplineText}>National Conference</Text>
-        </View>
+        </View> */}
 
         <View style={styles.titleBlock}>
           <Text style={styles.name}>{event.name}</Text>
           <Text style={styles.tagline}>{event.tagline}</Text>
+          <View style={styles.themeBlock}>
+            <Text style={styles.themeLabel}>Theme</Text>
+            <Text style={styles.themeText}>{eventTheme}</Text>
+          </View>
         </View>
 
         <View style={styles.infoPanel}>
           <InfoRow icon="calendar-outline" text={event.date} />
           <View style={styles.infoDivider} />
-          <InfoRow icon="time-outline" text={eventTime} />
-          <View style={styles.infoDivider} />
-          <InfoRow icon="location-outline" text={`Venue: ${event.venue}`} />
+          <InfoRow icon="location-outline" text={`Venue: ${event.venue}, ${event.address}`} />
         </View>
       </View>
-
-      <View style={styles.indicatorRow}>
-        {slideImages.map((_, index) => (
-          <View
-            key={index}
-            style={[
-              styles.indicator,
-              index === activeSlide ? styles.indicatorActive : styles.indicatorInactive
-            ]}
-          />
-        ))}
-      </View>
-    </ImageBackground>
+    </LinearGradient>
   );
 }
 
@@ -109,9 +82,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 22 },
     shadowRadius: 36,
     elevation: 12
-  },
-  image: {
-    borderRadius: 24
   },
   overlay: {
     ...StyleSheet.absoluteFillObject
@@ -166,8 +136,8 @@ const styles = StyleSheet.create({
   },
   name: {
     color: theme.colors.white,
-    fontSize: 38,
-    lineHeight: 42,
+    fontSize: 32,
+    lineHeight: 37,
     fontWeight: '700',
     letterSpacing: 0
   },
@@ -177,6 +147,28 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     fontWeight: '700',
     maxWidth: 292
+  },
+  themeBlock: {
+    marginTop: 5,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.orange,
+    paddingLeft: 10,
+    gap: 3
+  },
+  themeLabel: {
+    color: '#FFC229',
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase'
+  },
+  themeText: {
+    color: theme.colors.white,
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: '600',
+    maxWidth: 296
   },
   infoPanel: {
     marginTop: 6,
@@ -214,22 +206,4 @@ const styles = StyleSheet.create({
     marginLeft: 39,
     backgroundColor: 'rgba(255,255,255,0.13)'
   },
-  indicatorRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 7,
-    paddingBottom: 15
-  },
-  indicator: {
-    height: 7,
-    borderRadius: 4
-  },
-  indicatorActive: {
-    width: 24,
-    backgroundColor: theme.colors.orange
-  },
-  indicatorInactive: {
-    width: 7,
-    backgroundColor: 'rgba(255,255,255,0.5)'
-  }
 });

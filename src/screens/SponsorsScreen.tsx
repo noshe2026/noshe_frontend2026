@@ -15,7 +15,7 @@ type Props = CompositeScreenProps<
 >;
 
 const chiefMember = {
-  name: 'Shri. Gurdeep Singh',
+  name: 'Shri Gurdeep Singh',
   role: 'Chairman & Managing Director',
   company: 'NTPC Ltd.',
   image: require('../assets/Gurdeep.jpg')
@@ -23,13 +23,13 @@ const chiefMember = {
 
 const patrons = [
   {
-    name: 'Shri. Ravindra Kumar',
+    name: 'Shri Ravindra Kumar',
     role: 'Director (Operations)',
     company: 'NTPC Ltd.',
     image: require('../assets/Ravindra.jpg')
   },
   {
-    name: 'Shri. Anil Kumar Jadli',
+    name: 'Shri Anil Kumar Jadli',
     role: 'Director (HR)',
     company: 'NTPC Ltd.',
     image: require('../assets/Anil-Kumar.png')
@@ -38,28 +38,34 @@ const patrons = [
 
 const steeringCommittee = [
   {
-    name: 'Shri. Vijay Goel',
-    role: 'Executive Director - Safety',
+    name: 'Shri Chandramouli Kasina',
+    role: 'ED (Safety, Sustainability, Environment & Ash Management)',
     company: 'NTPC Ltd.',
-    image: require('../assets/Vijay-Goel.png')
+    image: require('../assets/Shri-Kasina-Chandramouli.png')
   },
   {
-    name: 'Shri. T K Bandyopadhyay',
-    role: 'Executive Director - SEA (Sustainable, Environment, Ash Management)',
+    name: 'Smt. Rachana Singh Bhal',
+    role: 'ED (HR-Strategic HR & Talent Management)',
     company: 'NTPC Ltd.',
-    image: require('../assets/T-K-Bandyopadhyay.png')
-  },
-  {
-    name: 'Ms. Rachana Singh Bhal',
-    role: 'Executive Director - PMI',
-    company: 'NTPC Ltd.',
-    image: require('../assets/Rachana-Singh-Bhal.jpg')
+    image: require('../assets/Ms. Rachana Singh Bhal.png')
   },
   {
     name: 'Dr. Basanta Kumar Behera',
     role: 'GM (Chief Medical Officer)',
     company: 'NTPC Ltd.',
-    image: require('../assets/Basanta-Kumar-Behera.jpg')
+    image: require('../assets/Dr. Basanta Kumar Behera.png')
+  },
+  {
+    name: 'Shri Vinod Rattan',
+    role: 'GM (Environment)',
+    company: 'NTPC Ltd.',
+    image: require('../assets/Shri-Vinod-Rattan.png')
+  },
+  {
+    name: 'Shri Chandan Shahi',
+    role: 'GM (Safety)',
+    company: 'NTPC Ltd.',
+    image: require('../assets/Shri-Chandan-Shahi.png')
   }
 ];
 
@@ -77,8 +83,8 @@ export function SponsorsScreen({ navigation }: Props) {
         </View>
         <View style={styles.heroCopy}>
           <Text style={styles.eyebrow}>NOSHE 2026</Text>
-          <Text style={styles.title}>Members</Text>
-          <Text style={styles.subtitle}>Chief patrons, patrons, and steering committee members.</Text>
+          <Text style={styles.title}>Organizing Committee</Text>
+          <Text style={styles.subtitle}>Meet the leadership team guiding NOSHE 2026</Text>
         </View>
       </LinearGradient>
 
@@ -91,7 +97,7 @@ export function SponsorsScreen({ navigation }: Props) {
             end={{ x: 1, y: 1 }}
             style={styles.featuredImageRing}
           >
-            <Image source={chiefMember.image} style={styles.featuredImage} />
+            <Image source={chiefMember.image} style={styles.featuredImage} resizeMode="contain" />
           </LinearGradient>
           <View style={styles.featuredCopy}>
             <Text style={styles.featuredName}>{chiefMember.name}</Text>
@@ -114,7 +120,7 @@ export function SponsorsScreen({ navigation }: Props) {
         <SectionHeader title="Steering Committee" />
         <View style={styles.grid}>
           {steeringCommittee.map((member) => (
-            <MemberCard key={member.name} member={member} compact />
+            <MemberCard key={member.name} member={member} />
           ))}
         </View>
       </View>
@@ -142,7 +148,11 @@ function MemberCard({
   return (
     <View style={[styles.memberCard, compact && styles.compactCard]}>
       <View style={[styles.memberImageWrap, compact && styles.compactImageWrap]}>
-        <Image source={member.image} style={[styles.memberImage, compact && styles.compactImage]} />
+        <Image
+          source={member.image}
+          style={[styles.memberImage, compact && styles.compactImage]}
+          resizeMode="contain"
+        />
       </View>
       <Text style={styles.memberName}>{member.name}</Text>
       <Text style={styles.memberRole}>{member.role}</Text>
@@ -233,13 +243,14 @@ const styles = StyleSheet.create({
     borderRadius: 79,
     padding: 5,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    overflow: 'hidden'
   },
   featuredImage: {
     width: 148,
     height: 148,
     borderRadius: 74,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.white,
     borderWidth: 3,
     borderColor: theme.colors.white
   },
@@ -301,7 +312,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#E2ECF6'
+    borderColor: '#E2ECF6',
+    overflow: 'hidden'
   },
   compactImageWrap: {
     width: 94,
@@ -312,7 +324,7 @@ const styles = StyleSheet.create({
     width: 108,
     height: 108,
     borderRadius: 54,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.white,
     borderWidth: 2,
     borderColor: theme.colors.white
   },
