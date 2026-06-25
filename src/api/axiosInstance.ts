@@ -3,8 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosHeaders } from 'axios';
 
 // export const API_BASE_URL = 'https://noshe-event-backend2026-1.onrender.com/api/event';
-export const API_BASE_URL = 'https://nosheeventbackend2026-production.up.railway.app/api/event';
-// const API_BASE_URL = 'https://innovision360.com/api/event/';
+// export const API_BASE_URL = 'https://nosheeventbackend2026-production.up.railway.app/api/event';
+const API_BASE_URL = 'https://innovision360.com/api/event/';
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
